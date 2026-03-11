@@ -448,12 +448,30 @@ const Leaderboard = ({ debaters, scores, user }: { debaters: Debater[], scores: 
   );
 };
 
-const Admin = ({ debaters }: { debaters: Debater[] }) => {
+const Admin = ({ debaters, scores }: { debaters: Debater[], scores: Score[] }) => {
   const [round, setRound] = useState(1);
   const [points, setPoints] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
+  const [nextRoundDate, setNextRoundDate] = useState('');
+
+  useEffect(() => {
+    onSnapshot(doc(db, 'settings', 'next_round'), (doc) => {
+      if (doc.exists()) setNextRoundDate(doc.data().value);
+    });
+  }, []);
+
+  const handleUpdateCountdown = async () => {
+    if (!nextRoundDate) return;
+    try {
+      await setDoc(doc(db, 'settings', 'next_round'), { value: nextRoundDate });
+      alert('Countdown updated!');
+    } catch (err) {
+      alert('Error updating countdown');
+    }
+  };
 
   const handleSubmit = async () => {
+    if (Object.keys(points).length === 0) return;
     setSaving(true);
     try {
       const batch = writeBatch(db);
@@ -467,7 +485,7 @@ const Admin = ({ debaters }: { debaters: Debater[] }) => {
         });
       });
       await batch.commit();
-      alert('Points updated!');
+      alert(`Round ${round} points pushed out!`);
       setPoints({});
     } catch (err) {
       console.error(err);
@@ -477,48 +495,128 @@ const Admin = ({ debaters }: { debaters: Debater[] }) => {
     }
   };
 
+  const deleteRound = async (roundNum: number) => {
+    if (!window.confirm(`Are you sure you want to delete all scores for Round ${roundNum}?`)) return;
+    try {
+      const q = query(collection(db, 'scores'), where('roundNumber', '==', roundNum));
+      const snap = await getDocs(q);
+      const batch = writeBatch(db);
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      alert(`Round ${roundNum} scores deleted.`);
+    } catch (err) {
+      alert('Error deleting scores');
+    }
+  };
+
+  const rounds = Array.from(new Set(scores.map(s => s.roundNumber))).sort((a, b) => b - a);
+
   return (
     <div className="p-6 max-w-2xl mx-auto pb-24 sm:pt-20">
       <div className="flex items-center gap-4 mb-8">
         <Shield className="text-indigo-600" size={32} />
         <div>
           <h2 className="text-2xl font-black text-gray-900">Admin Panel</h2>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Enter Round Results</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">League Management</p>
         </div>
       </div>
 
+      {/* Countdown Setting */}
       <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm mb-8">
-        <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Round Number</label>
-        <input
-          type="number"
-          value={round}
-          onChange={(e) => setRound(parseInt(e.target.value))}
-          className="w-full p-4 bg-gray-50 rounded-xl border-none font-bold text-gray-900 focus:ring-2 focus:ring-indigo-600"
-        />
+        <h3 className="text-sm font-black uppercase tracking-widest text-gray-900 mb-4 flex items-center gap-2">
+          <Clock size={16} />
+          Round Countdown
+        </h3>
+        <div className="flex gap-2">
+          <input
+            type="datetime-local"
+            value={nextRoundDate}
+            onChange={(e) => setNextRoundDate(e.target.value)}
+            className="flex-1 p-3 bg-gray-50 rounded-xl border-none font-bold text-gray-900 focus:ring-2 focus:ring-indigo-600"
+          />
+          <button
+            onClick={handleUpdateCountdown}
+            className="bg-indigo-600 text-white px-6 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-indigo-700 transition-colors"
+          >
+            Update
+          </button>
+        </div>
       </div>
 
-      <div className="space-y-3 mb-8">
-        {debaters.map((d) => (
-          <div key={d.id} className="flex items-center justify-between bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-            <div className="font-bold text-gray-900 capitalize">{d.name}</div>
-            <input
-              type="number"
-              placeholder="0"
-              value={points[d.id] || ''}
-              onChange={(e) => setPoints({ ...points, [d.id]: parseInt(e.target.value) || 0 })}
-              className="w-20 p-2 bg-gray-50 rounded-lg border-none text-center font-black text-indigo-600 focus:ring-2 focus:ring-indigo-600"
-            />
-          </div>
-        ))}
+      {/* Point Entry */}
+      <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm mb-8">
+        <h3 className="text-sm font-black uppercase tracking-widest text-gray-900 mb-4 flex items-center gap-2">
+          <Edit2 size={16} />
+          Enter Round Results
+        </h3>
+        
+        <div className="mb-6">
+          <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Round Number</label>
+          <input
+            type="number"
+            value={round}
+            onChange={(e) => setRound(parseInt(e.target.value) || 1)}
+            className="w-full p-4 bg-gray-50 rounded-xl border-none font-black text-gray-900 focus:ring-2 focus:ring-indigo-600"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-8">
+          {['A', 'B'].map(team => (
+            <div key={team}>
+              <h4 className={`text-xs font-black uppercase tracking-widest mb-3 ${team === 'A' ? 'text-indigo-600' : 'text-rose-600'}`}>
+                Team {team}
+              </h4>
+              <div className="space-y-2">
+                {debaters.filter(d => d.team === team).map(d => (
+                  <div key={d.id} className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-gray-600 truncate">{d.name}</span>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={points[d.id] || ''}
+                      onChange={(e) => setPoints({ ...points, [d.id]: parseInt(e.target.value) || 0 })}
+                      className="w-16 p-2 bg-gray-50 rounded-lg border-none text-center font-black text-indigo-600 focus:ring-2 focus:ring-indigo-600 text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={handleSubmit}
+          disabled={saving || Object.keys(points).length === 0}
+          className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-indigo-100 disabled:opacity-50 transition-all active:scale-[0.98]"
+        >
+          {saving ? 'Pushing...' : `Push Round ${round} Points`}
+        </button>
       </div>
 
-      <button
-        onClick={handleSubmit}
-        disabled={saving}
-        className="w-full bg-gray-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-gray-200 disabled:opacity-50 transition-all active:scale-[0.98]"
-      >
-        {saving ? 'Saving...' : 'Submit Points'}
-      </button>
+      {/* Round History */}
+      <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+        <h3 className="text-sm font-black uppercase tracking-widest text-gray-900 mb-4 flex items-center gap-2">
+          <LayoutGrid size={16} />
+          Round History
+        </h3>
+        <div className="space-y-2">
+          {rounds.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">No rounds recorded yet.</p>
+          ) : (
+            rounds.map(r => (
+              <div key={r} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                <span className="font-black text-gray-900">Round {r}</span>
+                <button
+                  onClick={() => deleteRound(r)}
+                  className="text-rose-500 hover:text-rose-700 text-[10px] font-black uppercase tracking-widest"
+                >
+                  Delete
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 };
@@ -616,7 +714,7 @@ export default function App() {
             {activeTab === 'team' && <MyTeam debaters={debaters} scores={scores} user={user} />}
             {activeTab === 'standings' && <Standings debaters={debaters} scores={scores} />}
             {activeTab === 'leaderboard' && <Leaderboard debaters={debaters} scores={scores} user={user} />}
-            {activeTab === 'admin' && isAdmin && <Admin debaters={debaters} />}
+            {activeTab === 'admin' && isAdmin && <Admin debaters={debaters} scores={scores} />}
           </motion.div>
         </AnimatePresence>
       </main>
