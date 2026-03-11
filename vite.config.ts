@@ -4,6 +4,9 @@ import path from 'path';
 import {defineConfig, loadEnv} from 'vite';
 
 export default defineConfig(({mode}) => {
+  base: '/Debating-Fantasy/', // Replace with your actual repository name
+  plugins: [react()],
+  // ... rest of config
   const env = loadEnv(mode, '.', '');
   return {
     plugins: [react(), tailwindcss()],
@@ -21,9 +24,6 @@ export default defineConfig(({mode}) => {
       hmr: process.env.DISABLE_HMR !== 'true',
     },
   };
+  
 });
-export default defineConfig({
-  base: '/Debating-Fantasy/', // Replace with your actual repository name
-  plugins: [react()],
-  // ... rest of config
-})
+
