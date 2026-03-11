@@ -22,3 +22,8 @@ export default defineConfig(({mode}) => {
     },
   };
 });
+export default defineConfig({
+  base: '/Debating-Fantasy/', // Replace with your actual repository name
+  plugins: [react()],
+  // ... rest of config
+})
