@@ -1,0 +1,65 @@
+{
+  "entities": {
+    "Debater": {
+      "title": "Debater",
+      "description": "A debater in the league",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "team": { "type": "string", "enum": ["A", "B"] },
+        "cost": { "type": "integer" }
+      },
+      "required": ["name", "team", "cost"]
+    },
+    "Score": {
+      "title": "Score",
+      "description": "Points earned by a debater in a round",
+      "type": "object",
+      "properties": {
+        "debaterId": { "type": "string" },
+        "roundNumber": { "type": "integer" },
+        "points": { "type": "integer" }
+      },
+      "required": ["debaterId", "roundNumber", "points"]
+    },
+    "UserTeam": {
+      "title": "User Team",
+      "description": "A fantasy team created by a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "teamName": { "type": "string" },
+        "captainId": { "type": "string" },
+        "memberIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["userId", "teamName", "captainId", "memberIds"]
+    },
+    "Setting": {
+      "title": "Setting",
+      "description": "Global application settings",
+      "type": "object",
+      "properties": {
+        "value": { "type": "string" }
+      },
+      "required": ["value"]
+    }
+  },
+  "firestore": {
+    "/debaters/{debaterId}": {
+      "schema": "Debater",
+      "description": "Collection of all debaters"
+    },
+    "/scores/{scoreId}": {
+      "schema": "Score",
+      "description": "Historical scores for debaters"
+    },
+    "/userTeams/{userId}": {
+      "schema": "UserTeam",
+      "description": "Fantasy teams for each user"
+    },
+    "/settings/{settingId}": {
+      "schema": "Setting",
+      "description": "Global configuration"
+    }
+  }
+}

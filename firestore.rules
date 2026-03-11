@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: debaters
+    // Fields: name (string), team (string: A|B), cost (int)
+    //
+    // Collection: scores
+    // Fields: debaterId (string), roundNumber (int), points (int)
+    //
+    // Collection: userTeams
+    // Fields: userId (string), captainId (string), memberIds (list of strings)
+    //
+    // Collection: settings
+    // Fields: value (string)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "sweatycoiner@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    // Validation Helpers
+    function isValidDebater(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.team in ['A', 'B'] &&
+             data.cost is int && data.cost > 0 && data.cost <= 100;
+    }
+
+    function isValidScore(data) {
+      return data.debaterId is string &&
+             data.roundNumber is int && data.roundNumber > 0 &&
+             data.points is int;
+    }
+
+    function isValidUserTeam(data) {
+      return data.userId == request.auth.uid &&
+             data.teamName is string && data.teamName.size() > 0 && data.teamName.size() < 50 &&
+             data.captainId is string &&
+             data.memberIds is list && data.memberIds.size() == 3;
+    }
+
+    // Rules
+    match /debaters/{debaterId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidDebater(request.resource.data);
+    }
+
+    match /scores/{scoreId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidScore(request.resource.data);
+    }
+
+    match /userTeams/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId) && isValidUserTeam(request.resource.data);
+      allow delete: if isOwner(userId);
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
