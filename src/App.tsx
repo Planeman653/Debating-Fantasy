@@ -525,7 +525,7 @@ const Admin = ({ debaters, scores }: { debaters: Debater[], scores: Score[] }) =
       <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm mb-8">
         <h3 className="text-sm font-black uppercase tracking-widest text-gray-900 mb-4 flex items-center gap-2">
           <Clock size={16} />
-          Round Countdown
+          Round Countdown_XYZ
         </h3>
         <div className="flex gap-2">
           <input
